@@ -1,2 +1,3 @@
 # mpcorb2oorb
-Convert MPCORB file to OORB compatible input
+Convert MPCORB file to OORB compatible input.
+
