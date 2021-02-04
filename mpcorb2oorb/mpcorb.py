@@ -3,6 +3,7 @@ import pandas as pd
 from astropy.time import Time
 import requests
 
+
 __all__ = ['getMpcorb','readMpcorb','mpcorb2oorb','unpackMpcDate', 'convertMpcEpoch']
 
 def getMpcorb(url='https://minorplanetcenter.net/iau/MPCORB/MPCORB.DAT.gz', fname='MPCORB.DAT.gz', verbose=True):
@@ -85,29 +86,39 @@ def mpcorb2oorb(path2mpcorb, pathOut='mpcorb2oorb',nOutFiles=0, compression='gzi
         nOutFiles files containing chunks of orbits in oorb format
     """
 
-    mpcorb=readMpcorb(path2mpcorb,filternan=filternan)
+    mpcorb = readMpcorb(path2mpcorb,filternan=filternan)
 
-    mpcorb['q']=mpcorb['a'].values*(1.-mpcorb['e']).values
-    mpcorb['FORMAT']='COM'
+    mpcorb['q'] = mpcorb['a'].values*(1.-mpcorb['e']).values
+    mpcorb['FORMAT'] = 'COM'
     strs = mpcorb['epoch'].values.astype(str)
-    mpcorb2=mpcorb.apply(convertMpcEpoch,axis=1)
-    mpcorb2['t_p']=mpcorb2['epoch'].values-np.divide(mpcorb2['M'].values,mpcorb2['n'].values)
-    mpcorb2['P']=360/mpcorb2['n'].values
-    mpcorb2.rename(columns={'epoch':'t_0'},inplace=True)
-    mpcorb2['Index']=mpcorb2.index
-    mpcorb=mpcorb2[['Index','FORMAT', 'q', 'e', 'i','node', 'argperi', 't_p', 'H', 't_0','ObjID','readableName']]
+    print(strs)
+    vunpackMpcDate = np.vectorize(unpackMpcDate,otypes=[float])
+    dates = vunpackMpcDate(strs)
+    print(dates)
+    mpcorb['t_0'] = dates
+    mpcorb['Index'] = mpcorb.index
+    mpcorb['t_p'] = mpcorb['t_0'].values-np.divide(mpcorb['M'].values,mpcorb['n'].values)
+    mpcorb['P'] = 360/mpcorb['n'].values
+
+    # mpcorb2=mpcorb.apply(convertMpcEpoch,axis=1)
+    # mpcorb2['t_p']=mpcorb2['epoch'].values-np.divide(mpcorb2['M'].values,mpcorb2['n'].values)
+    # mpcorb2['P']=360/mpcorb2['n'].values
+    # mpcorb2.rename(columns={'epoch':'t_0'},inplace=True)
+    # mpcorb2['Index']=mpcorb2.index
+    # mpcorb=mpcorb2[['Index','FORMAT', 'q', 'e', 'i','node', 'argperi', 't_p', 'H', 't_0','ObjID','readableName']]
+
+    mpcorb2=mpcorb[['Index','FORMAT', 'q', 'e', 'i','node', 'argperi', 't_p', 'H', 't_0','ObjID','readableName']]
 
     if (nOutFiles == 0):
-        return mpcorb
+        return mpcorb2
     elif (nOutFiles == 1):
-        mpcorb.to_csv(pathOut, sep=' ', index=False)
+        mpcorb2.to_csv(pathOut, sep=' ', index=False)
         return
     else:
-        mpcorbArray=np.array_split(mpcorb,nOutFiles)
+        mpcorbArray=np.array_split(mpcorb2,nOutFiles)
         for i in range(len(mpcorbArray)):
             mpcorbArray[i].to_csv(pathOut+'_'+str(i), sep=' ', index=False)
         return
-
 
 def unpackMpcDate(packed_date):
     """ Unpack IAU Minor Planet Center dates.
@@ -149,7 +160,6 @@ def unpackMpcDate(packed_date):
     isot_string = '%d-%02d-%02d' % (year, month, day)
     t = Time(isot_string, format='isot', scale='tt')
     return t.mjd
-
 
 def _mpc_lookup(x,packed_date):
     """ Convert the single character dates into integers.
